@@ -1,0 +1,37 @@
+name: Daily Job Fetch
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch-jobs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run job fetcher
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python scripts/fetch_jobs.py
+
+      - name: Commit updated jobs.json
+        run: |
+          git config user.name  "Job Bot"
+          git config user.email "jobbot@github-actions"
+          git add jobs.json
+          git diff --staged --quiet || git commit -m "chore: daily job update $(date +'%Y-%m-%d')"
+          git push

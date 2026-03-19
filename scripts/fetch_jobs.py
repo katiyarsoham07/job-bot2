@@ -214,6 +214,180 @@ def shine():
         jobs += fetch_rss(f"https://www.shine.com/rss/category/{cat}", "Shine", "general")
     return jobs
 
+
+# ─── GOOGLE ALERTS RSS ─────────────────────────────────────────────────────
+# Google crawls & indexes public LinkedIn posts, hiring tweets, blogs.
+# These alerts catch "We're hiring" posts that never appear in job boards.
+
+GOOGLE_ALERT_QUERIES = [
+    # LinkedIn hiring posts
+    "hiring+sales+manager+india+startup",
+    "hiring+business+development+india+startup",
+    "hiring+agritech+sales+india",
+    "we+are+hiring+sales+india+linkedin",
+    "hiring+GTM+manager+india+startup",
+    # AgriTech specific
+    "hiring+agri+startup+india+sales",
+    "we+are+hiring+agritech+india",
+    "hiring+rural+sales+manager+india",
+    # IIM MBA targeted
+    "hiring+MBA+sales+india+startup",
+    "hiring+IIM+sales+manager+india",
+]
+
+def fetch_google_alerts():
+    """
+    Google Alerts RSS — catches hiring posts Google indexed from LinkedIn,
+    Twitter, company blogs, news sites. Completely free and legal.
+    Format: https://www.google.com/alerts/feeds/{USER_ID}/{ALERT_ID}
+    
+    Since we can't pre-generate user alert IDs, we use Google News RSS
+    which indexes the same content and is publicly accessible.
+    """
+    jobs = []
+    base = "https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+    
+    for query in GOOGLE_ALERT_QUERIES:
+        url = base.format(query=query)
+        raw = fetch_rss(url, "Google Alerts", "startup")
+        # Filter to only hiring-relevant results
+        filtered = [
+            j for j in raw
+            if any(kw in (j["title"] + j["description"]).lower()
+                   for kw in ["hiring", "vacancy", "opening", "job", "recruit",
+                               "sales", "business development", "agri", "startup"])
+        ]
+        jobs += filtered
+        time.sleep(0.5)
+    
+    print(f"  Google Alerts total: {len(jobs)} posts")
+    return jobs
+
+
+# ─── TWITTER/X HIRING POSTS ────────────────────────────────────────────────
+# Twitter/X has a public Nitter RSS mirror that exposes hiring tweets.
+# Founders, HRs, startup heads post "We're hiring" here daily.
+# We use Nitter (open-source Twitter frontend) which exposes RSS legally.
+
+TWITTER_HIRING_QUERIES = [
+    "hiring sales manager india startup",
+    "hiring business development india",
+    "we are hiring agritech india",
+    "hiring sales lead india remote",
+    "hiring GTM india startup",
+    "agritech hiring india sales",
+    "rural sales hiring india startup",
+    "MBA hiring sales india",
+    "we are hiring sales india",
+    "sales job opening india startup",
+    "hiring agri sales india",
+    "startup hiring sales india",
+]
+
+# Public Nitter instances (open-source Twitter RSS proxy — no login needed)
+NITTER_INSTANCES = [
+    "nitter.net",
+    "nitter.privacydev.net", 
+    "nitter.poast.org",
+]
+
+def fetch_twitter_hiring():
+    """
+    Fetch hiring tweets via Nitter RSS (public Twitter mirror).
+    Each query searches recent tweets containing hiring keywords.
+    This catches the daily "We're hiring!" posts that founders post.
+    """
+    jobs = []
+    
+    # Try each Nitter instance until one works
+    working_instance = None
+    for instance in NITTER_INSTANCES:
+        try:
+            test_url = f"https://{instance}/search/rss?q=hiring+india+startup&f=tweets"
+            req = Request(test_url, headers={"User-Agent": "Mozilla/5.0 JobBot/2.0"})
+            with urlopen(req, timeout=8) as r:
+                r.read(100)  # just check it responds
+            working_instance = instance
+            print(f"  Twitter/X: using {instance}")
+            break
+        except:
+            continue
+    
+    if not working_instance:
+        print("  Twitter/X: all Nitter instances unavailable — skipping")
+        return []
+
+    for query in TWITTER_HIRING_QUERIES:
+        encoded = query.replace(" ", "+")
+        url = f"https://{working_instance}/search/rss?q={encoded}&f=tweets"
+        raw = fetch_rss(url, "Twitter/X", "startup")
+        
+        # Filter to only genuine hiring posts, skip retweets & noise
+        filtered = []
+        for j in raw:
+            text = (j["title"] + " " + j["description"]).lower()
+            # Must mention hiring intent
+            is_hiring = any(kw in text for kw in [
+                "hiring", "we're hiring", "we are hiring", "looking for",
+                "job opening", "vacancy", "apply", "join our team", "join us"
+            ])
+            # Must mention relevant role
+            is_relevant = any(kw in text for kw in [
+                "sales", "business development", "bd ", "agri", "startup",
+                "gtm", "account manager", "revenue", "growth", "iim", "mba"
+            ])
+            # Skip pure retweets
+            is_retweet = text.startswith("rt @")
+            
+            if is_hiring and is_relevant and not is_retweet:
+                # Clean up tweet text to look like a job post
+                j["title"] = j["title"][:100]  # cap length
+                j["is_startup"] = True
+                filtered.append(j)
+        
+        jobs += filtered
+        time.sleep(0.6)
+
+    print(f"  Twitter/X hiring posts: {len(jobs)} found")
+    return jobs
+
+
+# ─── LINKEDIN COMPANY PAGE POSTS (via Google News) ─────────────────────────
+# Google News indexes LinkedIn company page posts including job announcements.
+# This catches posts from specific AgriTech & startup company pages.
+
+COMPANY_LINKEDIN_SEARCHES = [
+    "DeHaat hiring sales",
+    "Ninjacart hiring india",
+    "AgroStar hiring sales manager",
+    "BharatAgri hiring",
+    "FarMart hiring sales",
+    "Gramophone agri hiring",
+    "WayCool hiring india",
+    "OfBusiness hiring sales",
+    "Udaan hiring business development",
+    "Meesho hiring sales",
+    "Zetwerk hiring sales manager",
+    "Country Delight hiring india",
+    "Bijak hiring agri sales",
+    "Animall hiring india",
+]
+
+def fetch_company_linkedin_posts():
+    """Search Google News for hiring posts from specific companies."""
+    jobs = []
+    base = "https://news.google.com/rss/search?q={q}+linkedin+hiring&hl=en-IN&gl=IN&ceid=IN:en"
+    for company_query in COMPANY_LINKEDIN_SEARCHES:
+        encoded = company_query.replace(" ", "+")
+        url = base.format(q=encoded)
+        raw = fetch_rss(url, "LinkedIn Posts", "startup")
+        filtered = [j for j in raw if any(kw in (j["title"]+j["description"]).lower()
+                    for kw in ["hiring","vacancy","opening","job","career","apply"])]
+        jobs += filtered
+        time.sleep(0.4)
+    print(f"  Company LinkedIn posts (via Google): {len(jobs)} found")
+    return jobs
+
 # ─── MAIN FETCH ────────────────────────────────────────────────────────────
 def fetch_all():
     pool, seen = [], set()
@@ -281,6 +455,15 @@ def fetch_all():
 
     print("📡 Shine...")
     add(shine())
+
+    print("🔍 Google Alerts (hiring posts indexed by Google)...")
+    add(fetch_google_alerts())
+
+    print("🐦 Twitter/X hiring posts...")
+    add(fetch_twitter_hiring())
+
+    print("🏢 Company LinkedIn posts (via Google News)...")
+    add(fetch_company_linkedin_posts())
 
     print(f"\n✅ Total unique: {len(pool)}")
     return pool[:MAX_TOTAL]
@@ -431,9 +614,9 @@ def save(jobs):
 # ─── RUN ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print(f"\n{'='*55}")
-    print(f"  Job Bot v2.0 — Soham Katiyar | IIM K MBA")
+    print(f"  Job Bot v2.2 — Soham Katiyar | IIM K MBA")
     print(f"  {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print(f"  Focus: AgriTech Startups + Sales/BD Roles")
+    print(f"  Focus: AgriTech + Startups + LinkedIn/Twitter Hiring Posts")
     print(f"{'='*55}\n")
     jobs = fetch_all()
     print(f"\n🤖 AI scoring {len(jobs)} jobs...")

@@ -1,0 +1,4 @@
+# No external dependencies needed — uses Python standard library only
+# (urllib, xml, json, hashlib, re, datetime)
+# If you want email digest, uncomment:
+# sendgrid==6.11.0

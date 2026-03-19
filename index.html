@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soham's Job Dashboard</title>
+<style>
+  :root {
+    --navy: #1B3A6B;
+    --navy-light: #2a52a0;
+    --teal: #0F6E56;
+    --amber: #BA7517;
+    --red: #A32D2D;
+    --bg: #F5F6FA;
+    --card: #FFFFFF;
+    --border: #E2E6F0;
+    --text: #1A1A2E;
+    --muted: #6B7280;
+    --tag-bg: #EEF2FF;
+    --tag-text: #3730A3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--navy);
+    color: white;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header h1 span { opacity: 0.65; font-weight: 400; font-size: 16px; margin-left: 8px; }
+  .header-meta { font-size: 13px; opacity: 0.75; }
+  .header-meta b { color: #93C5FD; }
+
+  /* ── STATS BAR ── */
+  .stats {
+    display: flex;
+    gap: 12px;
+    padding: 16px 32px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .stat { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  .stat b { color: var(--text); font-size: 18px; }
+  .stat-divider { width: 1px; background: var(--border); align-self: stretch; }
+
+  /* ── FILTERS ── */
+  .filters {
+    display: flex;
+    gap: 10px;
+    padding: 16px 32px;
+    flex-wrap: wrap;
+    align-items: center;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .filters label { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .filter-btn {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text);
+  }
+  .filter-btn:hover, .filter-btn.active { background: var(--navy); color: white; border-color: var(--navy); }
+  .search-box {
+    margin-left: auto;
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    width: 220px;
+    background: white;
+    outline: none;
+    color: var(--text);
+  }
+  .search-box:focus { border-color: var(--navy); box-shadow: 0 0 0 2px rgba(27,58,107,0.1); }
+
+  /* ── SORT BAR ── */
+  .sort-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 32px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .sort-bar select {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  /* ── JOB GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+    padding: 0 32px 32px;
+  }
+
+  /* ── JOB CARD ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: box-shadow 0.15s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover { box-shadow: 0 4px 20px rgba(27,58,107,0.1); transform: translateY(-1px); }
+  .card-accent {
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    border-radius: 12px 0 0 12px;
+  }
+  .card.score-high .card-accent  { background: var(--teal); }
+  .card.score-med .card-accent   { background: var(--amber); }
+  .card.score-low .card-accent   { background: var(--muted); }
+
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding-left: 8px; }
+  .card-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.4; }
+  .card-company { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .score-badge {
+    min-width: 44px;
+    text-align: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .score-high .score-badge { background: #D1FAE5; color: #065F46; }
+  .score-med  .score-badge { background: #FEF3C7; color: #92400E; }
+  .score-low  .score-badge { background: #F3F4F6; color: #6B7280; }
+
+  .card-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    padding-left: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .ai-reason {
+    font-size: 12px;
+    color: #1E40AF;
+    background: #EFF6FF;
+    border-radius: 6px;
+    padding: 7px 10px;
+    line-height: 1.5;
+    margin-left: 8px;
+  }
+  .ai-reason span { font-weight: 600; }
+
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-left: 8px;
+    align-items: center;
+  }
+  .tag {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    background: var(--tag-bg);
+    color: var(--tag-text);
+  }
+  .tag.source-linkedin   { background: #DBEAFE; color: #1E40AF; }
+  .tag.source-indeed     { background: #FCE7F3; color: #9D174D; }
+  .tag.source-instahyre  { background: #D1FAE5; color: #065F46; }
+  .tag.source-cutshort   { background: #FEF3C7; color: #92400E; }
+  .tag.source-freshersworld { background: #EDE9FE; color: #5B21B6; }
+  .tag.location { background: #F0FDF4; color: #166534; }
+
+  .card-footer { display: flex; gap: 8px; padding-left: 8px; margin-top: auto; }
+  .btn-apply {
+    flex: 1;
+    padding: 9px;
+    border-radius: 8px;
+    border: none;
+    background: var(--navy);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    transition: background 0.15s;
+  }
+  .btn-apply:hover { background: var(--navy-light); }
+  .btn-save {
+    padding: 9px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--muted);
+  }
+  .btn-save:hover { border-color: var(--navy); color: var(--navy); }
+  .btn-save.saved { background: #FEF3C7; border-color: #F59E0B; color: #92400E; }
+
+  /* ── EMPTY / LOADING ── */
+  .loading, .empty {
+    text-align: center;
+    padding: 80px 32px;
+    color: var(--muted);
+    grid-column: 1 / -1;
+  }
+  .loading-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--navy);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center;
+    padding: 20px;
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    background: white;
+  }
+
+  @media (max-width: 600px) {
+    .header { padding: 16px; }
+    .stats, .filters, .sort-bar, .grid { padding-left: 16px; padding-right: 16px; }
+    .grid { grid-template-columns: 1fr; }
+    .search-box { width: 100%; margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Soham's Job Dashboard <span>Daily AI-Matched Jobs</span></h1>
+    <div class="header-meta">Powered by Claude AI · Updated daily at <b>7:30 AM IST</b></div>
+  </div>
+  <div class="header-meta" id="last-updated">Loading...</div>
+</div>
+
+<div class="stats" id="stats-bar">
+  <div class="stat"><b id="stat-total">—</b> jobs today</div>
+  <div class="stat-divider"></div>
+  <div class="stat"><b id="stat-agri" style="color:#166534">—</b> 🌾 agritech</div>
+  <div class="stat-divider"></div>
+  <div class="stat"><b id="stat-startup" style="color:#1E40AF">—</b> 🚀 startups</div>
+  <div class="stat-divider"></div>
+  <div class="stat"><b id="stat-high" style="color:var(--teal)">—</b> 🔥 best match (8+)</div>
+  <div class="stat-divider"></div>
+  <div class="stat"><b id="stat-sources">—</b> sources</div>
+</div>
+
+<div class="filters">
+  <label>Filter:</label>
+  <button class="filter-btn active" onclick="setFilter('all', this)">All Jobs</button>
+  <button class="filter-btn" onclick="setFilter('agritech', this)" style="background:#F0FDF4;border-color:#86EFAC;color:#166534">🌾 AgriTech</button>
+  <button class="filter-btn" onclick="setFilter('startup', this)" style="background:#EFF6FF;border-color:#93C5FD;color:#1E40AF">🚀 Startups</button>
+  <button class="filter-btn" onclick="setFilter('high', this)">🔥 Best Match (8+)</button>
+  <button class="filter-btn" onclick="setFilter('saved', this)">⭐ Saved</button>
+  <button class="filter-btn" onclick="setFilter('linkedin', this)">LinkedIn</button>
+  <button class="filter-btn" onclick="setFilter('indeed', this)">Indeed</button>
+  <button class="filter-btn" onclick="setFilter('wellfound', this)">Wellfound</button>
+  <button class="filter-btn" onclick="setFilter('iimjobs', this)">IIMJobs</button>
+  <input class="search-box" type="text" placeholder="🔍 Search jobs, companies..." oninput="setSearch(this.value)">
+</div>
+
+<div class="sort-bar">
+  <span id="result-count">Loading jobs...</span>
+  <select onchange="setSort(this.value)">
+    <option value="score">Sort: Best Match First</option>
+    <option value="date">Sort: Latest First</option>
+    <option value="source">Sort: By Source</option>
+  </select>
+</div>
+
+<div class="grid" id="job-grid">
+  <div class="loading">
+    <div class="loading-spinner"></div>
+    <p>Fetching your personalised job matches...</p>
+  </div>
+</div>
+
+<div class="footer">
+  Built for Soham Katiyar · IIM Kozhikode MBA · Jobs refresh daily at 7:30 AM IST
+  · <a href="https://github.com" target="_blank" style="color:var(--navy)">View on GitHub</a>
+</div>
+
+<script>
+let allJobs = [];
+let savedIds = JSON.parse(localStorage.getItem('savedJobs') || '[]');
+let currentFilter = 'all';
+let currentSearch = '';
+let currentSort = 'score';
+
+// ── DATA LOAD ──────────────────────────────────────────────
+async function loadJobs() {
+  try {
+    // Try to load from jobs.json (GitHub Pages)
+    const res = await fetch('jobs.json?t=' + Date.now());
+    if (!res.ok) throw new Error('No data');
+    const data = await res.json();
+    allJobs = data.jobs || [];
+
+    // Update header
+    const d = new Date(data.generated_at);
+    document.getElementById('last-updated').textContent =
+      'Last updated: ' + d.toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'short'}) +
+      ' ' + d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+
+    updateStats();
+    render();
+  } catch(e) {
+    // Demo mode — show sample jobs so dashboard looks good
+    allJobs = generateDemoJobs();
+    document.getElementById('last-updated').textContent = 'Demo Mode — Run the Python script to load real jobs';
+    updateStats();
+    render();
+  }
+}
+
+// ── DEMO DATA (shown before first real fetch) ──────────────
+function generateDemoJobs() {
+  const templates = [
+    {title:"Regional Sales Manager", company:"Marico Industries", location:"Mumbai", source:"LinkedIn", score:9.2, reason:"Strong FMCG company, Sales Manager role perfectly matching IIM MBA + 2yr exp"},
+    {title:"Business Development Manager - B2B", company:"Razorpay", location:"Bangalore", source:"LinkedIn", score:8.8, reason:"High-growth fintech, BD role aligns with corporate sales expertise"},
+    {title:"Key Account Manager - Automotive", company:"Tata Motors", location:"Kanpur", source:"Indeed", score:8.5, reason:"Automotive sector match, KAM role suits RAAM Group experience"},
+    {title:"Sales Head - AgriTech", company:"DeHaat", location:"Patna", source:"Instahyre", score:9.1, reason:"AgriTech + IIM K MBA rare combo, ICAR background perfectly matches DeHaat farmer-network model", is_agri:true, is_startup:true},
+    {title:"GTM Manager - SaaS", company:"Zoho Corporation", location:"Remote", source:"Cutshort", score:7.9, reason:"GTM strategy role, MBA from IIM K is strong fit for SaaS growth"},
+    {title:"Corporate Sales Manager", company:"HDFC Ergo", location:"Lucknow", source:"Indeed", score:7.7, reason:"Financial services, corporate sales matches Bajaj Capital internship"},
+    {title:"GM - Sales & Operations", company:"Asian Paints", location:"Delhi", source:"LinkedIn", score:9.0, reason:"GM role exactly matching current profile, FMCG market leader"},
+    {title:"National Sales Manager", company:"Pidilite Industries", location:"Mumbai", source:"LinkedIn", score:8.6, reason:"National sales leadership, strong FMCG brand, MBA premium role"},
+    {title:"Channel Sales Manager", company:"Samsung India", location:"Noida", source:"Indeed", score:7.5, reason:"Channel management skill match, leading consumer electronics brand"},
+    {title:"Business Development Lead", company:"FarMart", location:"Gurgaon", source:"Instahyre", score:8.1, reason:"AgriTech BD role, direct match with FarmerFace consulting experience"},
+    {title:"Area Sales Manager", company:"ITC Limited", location:"Kanpur", source:"Indeed", score:8.4, reason:"ITC in Kanpur, area sales role, FMCG giant, strong MBA alignment"},
+    {title:"Sales Strategy Manager", company:"OYO Rooms", location:"Gurgaon", source:"Cutshort", score:7.2, reason:"Strategy + sales combo, hospitality sector, startup experience valued"},
+    {title:"Key Account Manager - Enterprise", company:"Juspay", location:"Bangalore", source:"Cutshort", score:7.4, reason:"Enterprise KAM, fintech growth, IIM K profile premium fit"},
+    {title:"Regional Business Manager", company:"Dabur India", location:"UP Region", source:"LinkedIn", score:8.9, reason:"Regional role in UP, FMCG leader, perfect geography + profile match"},
+    {title:"Sales Manager - BFSI", company:"Bajaj Finserv", location:"Lucknow", source:"Indeed", score:7.8, reason:"BFSI sales, Lucknow location, prior Bajaj Capital experience is major plus"},
+  ];
+  return templates.map((t, i) => ({
+    id: 'demo_' + i,
+    ...t,
+    link: '#',
+    description: 'Click to view full job description on ' + t.source,
+    published: new Date().toISOString(),
+  }));
+}
+
+// ── STATS ──────────────────────────────────────────────────
+function updateStats() {
+  const high    = allJobs.filter(j => j.score >= 8).length;
+  const agri    = allJobs.filter(j => j.is_agri).length;
+  const startup = allJobs.filter(j => j.is_startup).length;
+  const sources = [...new Set(allJobs.map(j => j.source))].length;
+  document.getElementById('stat-total').textContent   = allJobs.length;
+  document.getElementById('stat-agri').textContent    = agri;
+  document.getElementById('stat-startup').textContent = startup;
+  document.getElementById('stat-high').textContent    = high;
+  document.getElementById('stat-sources').textContent = sources;
+}
+
+// ── FILTER & SORT ──────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function setSearch(val) {
+  currentSearch = val.toLowerCase();
+  render();
+}
+
+function setSort(val) {
+  currentSort = val;
+  render();
+}
+
+function getFiltered() {
+  let jobs = [...allJobs];
+
+  // Filter
+  if (currentFilter === 'high')       jobs = jobs.filter(j => j.score >= 8);
+  else if (currentFilter === 'med')   jobs = jobs.filter(j => j.score >= 6);
+  else if (currentFilter === 'saved')    jobs = jobs.filter(j => savedIds.includes(j.id));
+  else if (currentFilter === 'agritech') jobs = jobs.filter(j => j.is_agri);
+  else if (currentFilter === 'startup')  jobs = jobs.filter(j => j.is_startup);
+  else if (currentFilter !== 'all')      jobs = jobs.filter(j => j.source.toLowerCase().includes(currentFilter));
+
+  // Search
+  if (currentSearch) {
+    jobs = jobs.filter(j =>
+      (j.title + j.company + j.location + j.description + j.reason).toLowerCase().includes(currentSearch)
+    );
+  }
+
+  // Sort
+  if (currentSort === 'score') jobs.sort((a, b) => b.score - a.score);
+  else if (currentSort === 'date') jobs.sort((a, b) => new Date(b.published) - new Date(a.published));
+  else if (currentSort === 'source') jobs.sort((a, b) => a.source.localeCompare(b.source));
+
+  return jobs;
+}
+
+// ── RENDER ─────────────────────────────────────────────────
+function render() {
+  const jobs = getFiltered();
+  const grid = document.getElementById('job-grid');
+  document.getElementById('result-count').textContent = `Showing ${jobs.length} job${jobs.length !== 1 ? 's' : ''}`;
+
+  if (jobs.length === 0) {
+    grid.innerHTML = `<div class="empty"><p style="font-size:32px">🔍</p><p style="margin-top:12px;font-size:15px">No jobs found for this filter.</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = jobs.map(job => {
+    const scoreClass = job.score >= 8 ? 'score-high' : job.score >= 6 ? 'score-med' : 'score-low';
+    const scoreLabel = job.score >= 8 ? '🔥 ' + job.score : job.score >= 6 ? '✅ ' + job.score : job.score;
+    const isSaved    = savedIds.includes(job.id);
+    const srcClass   = 'source-' + (job.source || '').toLowerCase().replace(/\s+/g,'');
+    const age        = getAge(job.published);
+
+    return `
+<div class="card ${scoreClass}">
+  <div class="card-accent"></div>
+  <div class="card-header">
+    <div>
+      <div class="card-title">${escHtml(job.title)}</div>
+      <div class="card-company">${escHtml(job.company)}</div>
+    </div>
+    <div class="score-badge">${scoreLabel}</div>
+  </div>
+  ${job.description ? `<div class="card-desc">${escHtml(job.description)}</div>` : ''}
+  ${job.reason ? `<div class="ai-reason"><span>AI:</span> ${escHtml(job.reason)}</div>` : ''}
+  <div class="card-meta">
+    <span class="tag ${srcClass}">${escHtml(job.source)}</span>
+    ${job.location ? `<span class="tag location">📍 ${escHtml(job.location)}</span>` : ''}
+    <span class="tag">${age}</span>
+  </div>
+  <div class="card-footer">
+    <a class="btn-apply" href="${escHtml(job.link)}" target="_blank" rel="noopener">Apply Now →</a>
+    <button class="btn-save ${isSaved ? 'saved' : ''}" onclick="toggleSave('${job.id}', this)">
+      ${isSaved ? '⭐ Saved' : '☆ Save'}
+    </button>
+  </div>
+</div>`;
+  }).join('');
+}
+
+// ── SAVE JOB ───────────────────────────────────────────────
+function toggleSave(id, btn) {
+  if (savedIds.includes(id)) {
+    savedIds = savedIds.filter(s => s !== id);
+    btn.classList.remove('saved');
+    btn.textContent = '☆ Save';
+  } else {
+    savedIds.push(id);
+    btn.classList.add('saved');
+    btn.textContent = '⭐ Saved';
+  }
+  localStorage.setItem('savedJobs', JSON.stringify(savedIds));
+  if (currentFilter === 'saved') render();
+}
+
+// ── HELPERS ────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getAge(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d)) return 'Today';
+  const diff = Math.floor((Date.now() - d) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return '1 day ago';
+  return diff + ' days ago';
+}
+
+// ── INIT ───────────────────────────────────────────────────
+loadJobs();
+</script>
+</body>
+</html>
